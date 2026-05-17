@@ -3,7 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using SousChef.Core.Common;
+using SousChef.Core.Interfaces;
 using SousChef.Infrastructure.Data;
+using SousChef.Infrastructure.Storage;
 
 namespace SousChef.Infrastructure;
 
@@ -30,8 +32,9 @@ public static class ServiceCollectionExtensions
         services.Configure<ExtractionOptions>(configuration.GetSection("Extraction"));
         services.Configure<EmbeddingOptions>(configuration.GetSection("Embedding"));
 
-        // Stub registrations — uncommented as implementations land in Phases 2 and 3
-        // services.AddScoped<IStorageService, R2StorageService>();
+        services.AddScoped<IStorageService, R2StorageService>();
+
+        // Stub registrations — uncommented as implementations land in Phase 3
         // services.AddScoped<IDocumentExtractor, PdfDocumentExtractor>();
         // services.AddScoped<IExtractionService, LlmExtractionService>();
         // services.AddScoped<IEmbeddingService, LlmEmbeddingService>();

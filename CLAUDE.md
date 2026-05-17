@@ -26,6 +26,16 @@ npm run build     # production build
 
 There are no automated tests yet. When adding them, use `dotnet test` from the solution root.
 
+```bash
+# Test upload (replace port and path with actuals)
+curl -X POST http://localhost:<port>/api/uploads \
+  -F "file=@/path/to/recipe.pdf" \
+  -H "Accept: application/json"
+
+# Check job status
+curl http://localhost:<port>/api/jobs/<job-id>
+```
+
 ## Architecture
 
 SousChef is a multi-project .NET Aspire solution. `apphost.cs` (root-level C# script, not inside a project folder) is the Aspire entry point — it wires all containers and projects. New Aspire hosting integrations are added there as `#:package` directives.
@@ -42,7 +52,12 @@ SousChef.Infrastructure → SousChef.Core
 
 **`SousChef.Infrastructure`** contains EF Core entities, `SousChefDbContext`, and stub service folders (`Storage/`, `Extraction/`, `Embedding/`) ready to receive implementations. DI registration is in `ServiceCollectionExtensions.AddSousChefInfrastructure()`. New service implementations go in their respective subfolder and are wired by uncommenting the stub lines in that method.
 
-**`SousChef.Api`** uses Minimal API. New routes belong in `Endpoints/` as static extension classes on `IEndpointRouteBuilder`. Background workers belong in `Workers/`.
+**`SousChef.Api`** uses Minimal API. New routes belong in `Endpoints/` as static extension classes on `IEndpointRouteBuilder`, registered in `Program.cs` via `app.Map*Endpoints()`. Background workers belong in `Workers/` and are registered with `AddHostedService<T>()`. `UseAntiforgery()` is required in the middleware pipeline for `IFormFile` endpoints; individual file-upload routes call `.DisableAntiforgery()` since no CSRF token is involved.
+
+- Upload endpoint streams directly from `IFormFile` to `IStorageService` — no temp file on disk
+- `BackgroundService` uses `IServiceScopeFactory` for scoped DI (EF Core `DbContext` is scoped, never inject it directly into a singleton/hosted service)
+- One job claimed per polling cycle intentionally — simple and debuggable; batching deferred to later phases
+- `PlaceholderUserId = "anonymous"` used in `UploadEndpoints` until Phase 5 Auth0 integration; swap the source of the value only, no structural change required
 
 **pgvector wiring**: `Pgvector.EntityFrameworkCore 0.3.0` (built against Npgsql 9.x) has a partial incompatibility with Npgsql 10.x. The workaround in `ServiceCollectionExtensions` is: build `NpgsqlDataSource` with `NpgsqlDataSourceBuilder.UseVector()` (base `Pgvector` package, Npgsql-10-compatible), pass the pre-built source to `UseNpgsql(dataSource)`, then call `o.UseVector()` on the EF options builder for EF model-level type mapping only — the data-source-builder path inside `o.UseVector()` is never invoked when a pre-built source is used. Do not change this pattern without verifying pgvector EF compatibility with the installed Npgsql version.
 
