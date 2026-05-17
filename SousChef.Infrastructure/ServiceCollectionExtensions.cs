@@ -15,7 +15,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connStr = configuration.GetConnectionString("souschef") ?? "";
+        var connStr = configuration.GetConnectionString("souschef");
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connStr);
         dataSourceBuilder.UseVector();
         var dataSource = dataSourceBuilder.Build();

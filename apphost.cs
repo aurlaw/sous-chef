@@ -8,7 +8,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Postgres with pgvector
 var db = builder.AddPostgres("db")
     .WithImage("pgvector/pgvector", "pg16")
-    .WithPgAdmin()
+    .WithHostPort(55432)
     .WithDataVolume("postgres_data");
 
 var souschefDb = db.AddDatabase("souschef");

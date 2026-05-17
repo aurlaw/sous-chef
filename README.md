@@ -52,7 +52,7 @@ make dev
 # or: aspire start
 ```
 
-Aspire starts all containers (Postgres + pgvector, MinIO, pgAdmin) and launches both the API and the Vue dev server. Open the Aspire dashboard URL printed in the terminal.
+Aspire starts all containers (Postgres + pgvector, MinIO) and launches both the API and the Vue dev server. Open the Aspire dashboard URL printed in the terminal.
 
 ### 4. Create the MinIO bucket (first run only)
 
@@ -120,7 +120,6 @@ dotnet ef database update \
 | API | `https://localhost:7xxx` | Aspire-assigned port |
 | Scalar UI | `<api-url>/scalar/v1` | Interactive API docs |
 | MinIO Console | `http://localhost:9001` | Object storage UI |
-| pgAdmin | via Aspire dashboard | Postgres admin UI |
 | Vue Dev Server | `http://localhost:5173` | Hot-reload frontend |
 
 ## Configuration
