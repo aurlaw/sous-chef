@@ -5,6 +5,7 @@ using Npgsql;
 using SousChef.Core.Common;
 using SousChef.Core.Interfaces;
 using SousChef.Infrastructure.Data;
+using SousChef.Infrastructure.Extraction;
 using SousChef.Infrastructure.Storage;
 
 namespace SousChef.Infrastructure;
@@ -33,9 +34,9 @@ public static class ServiceCollectionExtensions
         services.Configure<EmbeddingOptions>(configuration.GetSection("Embedding"));
 
         services.AddScoped<IStorageService, R2StorageService>();
+        services.AddScoped<IDocumentExtractor, PdfDocumentExtractor>();
 
         // Stub registrations — uncommented as implementations land in Phase 3
-        // services.AddScoped<IDocumentExtractor, PdfDocumentExtractor>();
         // services.AddScoped<IExtractionService, LlmExtractionService>();
         // services.AddScoped<IEmbeddingService, LlmEmbeddingService>();
 

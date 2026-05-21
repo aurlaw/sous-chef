@@ -19,6 +19,7 @@ public class ExtractionJob
     public string OriginalFilename { get; set; } = string.Empty;
     public ExtractionJobStatus Status { get; set; } = ExtractionJobStatus.Pending;
     public string? PdfType { get; set; }
+    public string? ExtractedText { get; set; }
     public string? ExtractedData { get; set; }
     public string? Error { get; set; }
     public int Attempts { get; set; }

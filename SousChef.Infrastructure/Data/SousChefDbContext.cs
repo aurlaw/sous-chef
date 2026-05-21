@@ -29,6 +29,7 @@ public class SousChefDbContext(DbContextOptions<SousChefDbContext> options) : Db
             e.Property(j => j.Status)
                 .HasConversion<string>()
                 .HasDefaultValue(ExtractionJobStatus.Pending);
+            e.Property(j => j.ExtractedText).HasColumnType("text");
             e.Property(j => j.ExtractedData).HasColumnType("jsonb");
             e.Property(j => j.CreatedAt).HasDefaultValueSql("now()");
             e.HasIndex(j => j.Status);

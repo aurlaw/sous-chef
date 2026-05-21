@@ -14,6 +14,10 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Scalar.AspNetCore" Version="2.14.14" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
+    <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -22,5 +26,26 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>3c553ec4-c72a-42ee-8fba-565f4d082d02</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="tessdata/**">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Symlink Homebrew Tesseract/Leptonica dylibs into x64/ where InteropDotNet looks first on macOS -->
+  <Target Name="LinkTesseractNativeLibsMacOS" AfterTargets="Build" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <PropertyGroup>
+      <_BrewLib Condition="Exists('/opt/homebrew/lib/libleptonica.6.dylib')">/opt/homebrew/lib</_BrewLib>
+      <_BrewLib Condition="'$(_BrewLib)' == '' And Exists('/usr/local/lib/libleptonica.6.dylib')">/usr/local/lib</_BrewLib>
+    </PropertyGroup>
+    <MakeDir Directories="$(OutputPath)x64" />
+    <Exec Command="ln -sf $(_BrewLib)/libleptonica.6.dylib $(OutputPath)x64/libleptonica-1.82.0.dylib"
+          Condition="'$(_BrewLib)' != ''" />
+    <Exec Command="ln -sf $(_BrewLib)/libtesseract.5.dylib $(OutputPath)x64/libtesseract50.dylib"
+          Condition="'$(_BrewLib)' != ''" />
+    <Warning Text="Homebrew Tesseract not found — image PDF OCR will fail. Run: make setup-native-libs"
+             Condition="'$(_BrewLib)' == ''" />
+  </Target>
 
 </Project>

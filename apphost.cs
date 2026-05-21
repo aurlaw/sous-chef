@@ -25,6 +25,7 @@ var minio = builder.AddContainer("minio", "minio/minio")
 // API (includes BackgroundService worker)
 var api = builder.AddProject<Projects.SousChef_Api>("api")
     .WithReference(souschefDb)
+    .WithEnvironment("TESSDATA_PREFIX", "./tessdata")
     .WaitFor(souschefDb);
 
 // Vue frontend

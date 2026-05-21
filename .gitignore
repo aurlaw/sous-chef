@@ -488,3 +488,6 @@ $RECYCLE.BIN/
 app-data/
 sous-chef-web/dist/
 aspire.config.json
+
+# Tesseract trained data (download manually)
+SousChef.Api/tessdata/eng.traineddata

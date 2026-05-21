@@ -65,6 +65,18 @@ SousChef.Infrastructure → SousChef.Core
 
 **Migrations**: EF Core migrations are applied automatically in `Program.cs` when `ASPNETCORE_ENVIRONMENT=Development`. The `--startup-project` must always be `SousChef.Api` because that project holds `appsettings.json` with the connection string and EF Design tooling.
 
+**Serilog + OTEL**: `builder.Host.UseSerilog(...)` configured in `Program.cs` before `builder.Build()`. Writes to console and to the Aspire OTEL sink — structured logs appear in the Aspire dashboard under the `api` resource. `OTEL_EXPORTER_OTLP_ENDPOINT` env var controls the sink endpoint; Aspire injects it automatically.
+
+**`extracted_text`** (text column on `extraction_jobs`) — raw PDF extraction output set in Phase 3a, never overwritten. `extracted_data` (jsonb) remains null until Phase 3b.
+
+**`PipelineStage` enum** lives in `SousChef.Core/Models/PipelineError.cs` alongside the `PipelineError` record. `PipelineError.ToJson()` serializes to camelCase JSON for storage in the `error` column. Stages: `Download`, `DocumentExtraction`, `RecipeValidation`, `LlmExtraction`, `JsonParsing`.
+
+**`PdfDocumentExtractor`** in `SousChef.Infrastructure/Extraction/`: detects text vs image PDFs via PdfPig word-count heuristic (≥80% text pages → text path), extracts via PdfPig (text) or Docnet.Core + Tesseract OCR (image). Docnet BGRA bytes are converted to PNG via **SkiaSharp** (cross-platform, no libgdiplus required). `TESSDATA_PREFIX` is set via Aspire env var to `./tessdata`; `eng.traineddata` is gitignored and must be downloaded manually. **Native lib setup (macOS arm64, run once):** `make setup-native-libs` — installs Homebrew tesseract and creates Homebrew-path symlinks in `/opt/homebrew/lib` with the names the wrapper expects. The `SousChef.Api.csproj` `LinkTesseractNativeLibsMacOS` build target then symlinks `{outputDir}/x64/libleptonica-1.82.0.dylib` and `libtesseract41.dylib` into the build output after every build. `InteropDotNet` checks `{entryAssemblyDir}/x64/` first, so no `DYLD_LIBRARY_PATH` needed.
+
+**`JobStatusHub`** at `/hubs/jobs` — broadcasts `JobStatusChanged`, `JobReadyForReview`, and `JobFailed` messages to all connected clients. Strongly-typed message records live in `SousChef.Core/Models/HubMessages.cs`. CORS policy `VueFrontend` allows `localhost:5173` and `souschef.aurlaw.dev` with credentials (required for SignalR WebSocket). Vue SignalR client deferred to Phase 6.
+
+**`ExtractionBackgroundService`** pipeline (Phase 3a): Pending → Processing (claim) → Download (R2) → DocumentExtraction + RecipeValidation (PdfDocumentExtractor) → Review (success) or Failed (structured PipelineError). Hub notifications pushed at each stage transition. `IDocumentExtractor.ExtractTextAsync` returns `Error.Validation` code for keyword pre-filter failures, `Error.Internal` for extraction failures — the service uses `.Error.Code == "VALIDATION"` to set the correct `PipelineStage` on failure.
+
 ## Key Decisions and Constraints
 
 - `apphost.cs` is a root-level file — not inside a project folder. Do not move or convert it to a `.csproj`-based project.

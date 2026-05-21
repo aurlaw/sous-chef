@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using SousChef.Infrastructure.Data;
 namespace SousChef.Infrastructure.Migrations
 {
     [DbContext(typeof(SousChefDbContext))]
-    partial class SousChefDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260521211140_AddExtractedTextToExtractionJob")]
+    partial class AddExtractedTextToExtractionJob
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
