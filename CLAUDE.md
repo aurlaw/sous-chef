@@ -71,7 +71,15 @@ SousChef.Infrastructure → SousChef.Core
 
 **`PipelineStage` enum** lives in `SousChef.Core/Models/PipelineError.cs` alongside the `PipelineError` record. `PipelineError.ToJson()` serializes to camelCase JSON for storage in the `error` column. Stages: `Download`, `DocumentExtraction`, `RecipeValidation`, `LlmExtraction`, `JsonParsing`.
 
-**`PdfDocumentExtractor`** in `SousChef.Infrastructure/Extraction/`: detects text vs image PDFs via PdfPig word-count heuristic (≥80% text pages → text path), extracts via PdfPig (text) or Docnet.Core + Tesseract OCR (image). Docnet BGRA bytes are converted to PNG via **SkiaSharp** (cross-platform, no libgdiplus required). `TESSDATA_PREFIX` is set via Aspire env var to `./tessdata`; `eng.traineddata` is gitignored and must be downloaded manually. **Native lib setup (macOS arm64, run once):** `make setup-native-libs` — installs Homebrew tesseract and creates Homebrew-path symlinks in `/opt/homebrew/lib` with the names the wrapper expects. The `SousChef.Api.csproj` `LinkTesseractNativeLibsMacOS` build target then symlinks `{outputDir}/x64/libleptonica-1.82.0.dylib` and `libtesseract41.dylib` into the build output after every build. `InteropDotNet` checks `{entryAssemblyDir}/x64/` first, so no `DYLD_LIBRARY_PATH` needed.
+**`PdfDocumentExtractor`** in `SousChef.Infrastructure/Extraction/`: detects text vs image PDFs via PdfPig word-count heuristic (≥80% text pages → text path), extracts via PdfPig (text) or Docnet.Core + Tesseract OCR (image). Docnet returns raw BGRA bytes; these are converted to PNG via **SkiaSharp** before passing to Tesseract `Pix.LoadFromMemory` — no libgdiplus required.
+
+**Tesseract native libs (macOS — run once):** `make setup-native-libs` installs Homebrew tesseract. The `LinkTesseractNativeLibsMacOS` MSBuild target in `SousChef.Api.csproj` then runs after every build on macOS and creates two symlinks in `{outputDir}/x64/`:
+- `libleptonica-1.82.0.dylib` → `/opt/homebrew/lib/libleptonica.6.dylib`
+- `libtesseract50.dylib` → `/opt/homebrew/lib/libtesseract.5.dylib`
+
+These names match exactly what `InteropDotNet` (embedded in the `Tesseract` NuGet package) looks for — derived from the Windows DLL names `leptonica-1.82.0.dll` / `tesseract50.dll` that ship in the package's `x64/` folder. `InteropDotNet` checks `{entryAssemblyDir}/x64/` before falling back to a bare `dlopen`, so no `DYLD_LIBRARY_PATH` is needed and the Aspire env var approach does not work (macOS Hardened Runtime strips it or the process chain drops it before it reaches `dlopen`).
+
+**`TESSDATA_PREFIX`** is set via Aspire env var to `./tessdata`; `eng.traineddata` is gitignored and must be downloaded manually (`make setup-native-libs` does not download it).
 
 **`JobStatusHub`** at `/hubs/jobs` — broadcasts `JobStatusChanged`, `JobReadyForReview`, and `JobFailed` messages to all connected clients. Strongly-typed message records live in `SousChef.Core/Models/HubMessages.cs`. CORS policy `VueFrontend` allows `localhost:5173` and `souschef.aurlaw.dev` with credentials (required for SignalR WebSocket). Vue SignalR client deferred to Phase 6.
 
