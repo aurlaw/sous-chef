@@ -1,6 +1,6 @@
-#:sdk Aspire.AppHost.Sdk@13.3.3
-#:package Aspire.Hosting.PostgreSQL@13.3.3
-#:package Aspire.Hosting.JavaScript@13.3.3
+﻿#:sdk Aspire.AppHost.Sdk@13.3.5
+#:package Aspire.Hosting.PostgreSQL@13.3.5
+#:package Aspire.Hosting.JavaScript@13.3.5
 #:project SousChef.Api/SousChef.Api.csproj
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -29,6 +29,7 @@ var api = builder.AddProject<Projects.SousChef_Api>("api")
 
 // Vue frontend
 builder.AddViteApp("web", "./sous-chef-web")
+    .WithHttpEndpoint(port: 5173, targetPort: 5173, isProxied: false)
     .WithReference(api)
     .WaitFor(api);
 

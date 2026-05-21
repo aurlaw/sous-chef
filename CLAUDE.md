@@ -77,8 +77,7 @@ SousChef.Infrastructure → SousChef.Core
 
 ## Spec Files
 
-Spec/brief files live in the Obsidian vault under the project's domain folder.
-If a referenced brief isn't found in the repo, check the vault at the configured
+Spec/brief files live in the Obsidian vault at the configured
 Obsidian path before asking the user to paste content.
 
 ## Implementation
