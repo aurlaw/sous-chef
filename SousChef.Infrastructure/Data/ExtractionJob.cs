@@ -5,6 +5,7 @@ public enum ExtractionJobStatus
     Pending,
     Processing,
     Review,
+    InvalidContent,
     Approved,
     Rejected,
     Completed,

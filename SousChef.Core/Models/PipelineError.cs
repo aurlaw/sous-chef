@@ -8,6 +8,7 @@ public enum PipelineStage
     DocumentExtraction,
     RecipeValidation,
     LlmExtraction,
+    NotARecipe,
     JsonParsing
 }
 

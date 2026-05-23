@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SousChef.Api.Hubs;
@@ -13,6 +14,8 @@ public class ExtractionBackgroundService : BackgroundService
     private readonly ILogger<ExtractionBackgroundService> _logger;
     private readonly IHubContext<JobStatusHub> _hub;
     private static readonly TimeSpan PollingInterval = TimeSpan.FromSeconds(10);
+    private static readonly JsonSerializerOptions CamelCaseOptions =
+        new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     public ExtractionBackgroundService(
         IServiceScopeFactory scopeFactory,
@@ -43,6 +46,7 @@ public class ExtractionBackgroundService : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<SousChefDbContext>();
         var storage = scope.ServiceProvider.GetRequiredService<IStorageService>();
         var extractor = scope.ServiceProvider.GetRequiredService<IDocumentExtractor>();
+        var llm = scope.ServiceProvider.GetRequiredService<IExtractionService>();
 
         var job = await db.ExtractionJobs
             .Where(j => j.Status == ExtractionJobStatus.Pending)
@@ -55,14 +59,14 @@ public class ExtractionBackgroundService : BackgroundService
         job.Attempts++;
         await db.SaveChangesAsync(ct);
 
-        await _hub.Clients.All.SendAsync("JobStatusChanged",
-            new JobStatusChanged(job.Id, "Processing", "Download", "Downloading PDF..."), ct);
-
         _logger.LogInformation(
             "Processing job {JobId} (attempt {Attempt}): {Filename}",
             job.Id, job.Attempts, job.OriginalFilename);
 
-        // Stage 1: Download
+        // Stage 1: Download from R2
+        await _hub.Clients.All.SendAsync("JobStatusChanged",
+            new JobStatusChanged(job.Id, "Processing", "Download", "Downloading PDF..."), ct);
+
         var downloadResult = await storage.DownloadAsync(job.FileKey, ct);
         if (!downloadResult.IsSuccess)
         {
@@ -71,10 +75,10 @@ public class ExtractionBackgroundService : BackgroundService
             return;
         }
 
+        // Stage 2: PDF text extraction + keyword pre-filter
         await _hub.Clients.All.SendAsync("JobStatusChanged",
             new JobStatusChanged(job.Id, "Processing", "DocumentExtraction", "Extracting text..."), ct);
 
-        // Stage 2: PDF text extraction + keyword pre-filter
         var extractResult = await extractor.ExtractTextAsync(downloadResult.Value!, ct);
         if (!extractResult.IsSuccess)
         {
@@ -95,16 +99,66 @@ public class ExtractionBackgroundService : BackgroundService
             extractResult.Value.PageCount,
             extractResult.Value.Text.Length);
 
+        // Stage 3: LLM extraction
+        await _hub.Clients.All.SendAsync("JobStatusChanged",
+            new JobStatusChanged(job.Id, "Processing", "LlmExtraction", "Analyzing recipe..."), ct);
+
+        var llmResult = await llm.ExtractRecipesAsync(job.ExtractedText, ct);
+        if (!llmResult.IsSuccess)
+        {
+            await db.SaveChangesAsync(ct); // persist extracted_text before failing
+            await FailJobAsync(db, job, PipelineStage.LlmExtraction,
+                llmResult.Error!.Message, ct);
+            return;
+        }
+
+        // Claude determined not a recipe
+        if (llmResult.Value!.IsNotARecipe)
+        {
+            var pipelineError = new PipelineError(
+                PipelineStage.NotARecipe,
+                "Claude determined this document is not a recipe.",
+                llmResult.Value.NotARecipeReason);
+
+            job.Status = ExtractionJobStatus.InvalidContent;
+            job.Error = pipelineError.ToJson();
+            job.ProcessedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+
+            await _hub.Clients.All.SendAsync("JobInvalidContent",
+                new JobInvalidContent(job.Id, llmResult.Value.NotARecipeReason!, job.ExtractedText!), ct);
+
+            _logger.LogWarning(
+                "Job {JobId} marked InvalidContent: {Reason}",
+                job.Id, llmResult.Value.NotARecipeReason);
+            return;
+        }
+
+        // Serialize recipe JSON
+        string extractedJson;
+        try
+        {
+            extractedJson = JsonSerializer.Serialize(llmResult.Value.Recipe, CamelCaseOptions);
+        }
+        catch (Exception ex)
+        {
+            await FailJobAsync(db, job, PipelineStage.JsonParsing,
+                $"Failed to serialize recipe: {ex.Message}", ct);
+            return;
+        }
+
+        // Success — transition to Review
         job.Status = ExtractionJobStatus.Review;
+        job.ExtractedData = extractedJson;
         job.ProcessedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
         await _hub.Clients.All.SendAsync("JobReadyForReview",
-            new JobReadyForReview(job.Id, string.Empty), ct);
+            new JobReadyForReview(job.Id, extractedJson), ct);
 
         _logger.LogInformation(
-            "Job {JobId} ready for review — extracted text stored ({Chars} chars)",
-            job.Id, job.ExtractedText.Length);
+            "Job {JobId} ready for review: {Title}",
+            job.Id, llmResult.Value.Recipe!.Title);
     }
 
     private async Task FailJobAsync(

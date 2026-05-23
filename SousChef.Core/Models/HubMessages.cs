@@ -15,3 +15,8 @@ public record JobFailed(
     string Stage,
     string Message,
     string? Detail);
+
+public record JobInvalidContent(
+    Guid JobId,
+    string Reason,
+    string ExtractedText);

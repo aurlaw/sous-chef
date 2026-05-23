@@ -5,6 +5,7 @@ using Npgsql;
 using SousChef.Core.Common;
 using SousChef.Core.Interfaces;
 using SousChef.Infrastructure.Data;
+using SousChef.Infrastructure.Embedding;
 using SousChef.Infrastructure.Extraction;
 using SousChef.Infrastructure.Storage;
 
@@ -33,12 +34,32 @@ public static class ServiceCollectionExtensions
         services.Configure<ExtractionOptions>(configuration.GetSection("Extraction"));
         services.Configure<EmbeddingOptions>(configuration.GetSection("Embedding"));
 
+        services.AddHttpClient("anthropic", client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["Extraction:Endpoint"] ?? "https://api.anthropic.com");
+            client.Timeout = TimeSpan.FromSeconds(180);
+        })
+        .AddStandardResilienceHandler(options =>
+        {
+            options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(180);
+            options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(170);
+            options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(360);
+            options.Retry.MaxRetryAttempts = 1;
+        });
+
+        services.AddHttpClient("openai", client =>
+        {
+            client.BaseAddress = new Uri(
+                configuration["Embedding:Endpoint"] ?? "https://api.openai.com");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .AddStandardResilienceHandler();
+
         services.AddScoped<IStorageService, R2StorageService>();
         services.AddScoped<IDocumentExtractor, PdfDocumentExtractor>();
-
-        // Stub registrations — uncommented as implementations land in Phase 3
-        // services.AddScoped<IExtractionService, LlmExtractionService>();
-        // services.AddScoped<IEmbeddingService, LlmEmbeddingService>();
+        services.AddScoped<IExtractionService, LlmExtractionService>();
+        services.AddScoped<IEmbeddingService, LlmEmbeddingService>();
 
         return services;
     }

@@ -69,7 +69,7 @@ SousChef.Infrastructure → SousChef.Core
 
 **`extracted_text`** (text column on `extraction_jobs`) — raw PDF extraction output set in Phase 3a, never overwritten. `extracted_data` (jsonb) remains null until Phase 3b.
 
-**`PipelineStage` enum** lives in `SousChef.Core/Models/PipelineError.cs` alongside the `PipelineError` record. `PipelineError.ToJson()` serializes to camelCase JSON for storage in the `error` column. Stages: `Download`, `DocumentExtraction`, `RecipeValidation`, `LlmExtraction`, `JsonParsing`.
+**`PipelineStage` enum** lives in `SousChef.Core/Models/PipelineError.cs` alongside the `PipelineError` record. `PipelineError.ToJson()` serializes to camelCase JSON for storage in the `error` column. Stages: `Download`, `DocumentExtraction`, `RecipeValidation`, `LlmExtraction`, `NotARecipe`, `JsonParsing`.
 
 **`PdfDocumentExtractor`** in `SousChef.Infrastructure/Extraction/`: detects text vs image PDFs via PdfPig word-count heuristic (≥80% text pages → text path), extracts via PdfPig (text) or Docnet.Core + Tesseract OCR (image). Docnet returns raw BGRA bytes; these are converted to PNG via **SkiaSharp** before passing to Tesseract `Pix.LoadFromMemory` — no libgdiplus required.
 
@@ -81,9 +81,18 @@ These names match exactly what `InteropDotNet` (embedded in the `Tesseract` NuGe
 
 **`TESSDATA_PREFIX`** is set via Aspire env var to `./tessdata`; `eng.traineddata` is gitignored and must be downloaded manually (`make setup-native-libs` does not download it).
 
-**`JobStatusHub`** at `/hubs/jobs` — broadcasts `JobStatusChanged`, `JobReadyForReview`, and `JobFailed` messages to all connected clients. Strongly-typed message records live in `SousChef.Core/Models/HubMessages.cs`. CORS policy `VueFrontend` allows `localhost:5173` and `souschef.aurlaw.dev` with credentials (required for SignalR WebSocket). Vue SignalR client deferred to Phase 6.
+**`JobStatusHub`** at `/hubs/jobs` — broadcasts `JobStatusChanged`, `JobReadyForReview`, `JobFailed`, and `JobInvalidContent` messages to all connected clients. Strongly-typed message records live in `SousChef.Core/Models/HubMessages.cs`. CORS policy `VueFrontend` allows `localhost:5173` and `souschef.aurlaw.dev` with credentials (required for SignalR WebSocket). Vue SignalR client deferred to Phase 6.
 
-**`ExtractionBackgroundService`** pipeline (Phase 3a): Pending → Processing (claim) → Download (R2) → DocumentExtraction + RecipeValidation (PdfDocumentExtractor) → Review (success) or Failed (structured PipelineError). Hub notifications pushed at each stage transition. `IDocumentExtractor.ExtractTextAsync` returns `Error.Validation` code for keyword pre-filter failures, `Error.Internal` for extraction failures — the service uses `.Error.Code == "VALIDATION"` to set the correct `PipelineStage` on failure.
+**`ExtractionBackgroundService`** pipeline (Phase 3b): Pending → Processing (claim) → reads `extracted_text` from DB → LLM extraction (Claude) → Review (success, `extracted_data` populated) or `InvalidContent` (Claude returned not-a-recipe sentinel) or Failed (hard error). Phase 3b does NOT re-download from R2 or re-extract from PDF — it reads the `extracted_text` column set in Phase 3a. Hub pushes `JobInvalidContent` with Claude's reason and the raw `extracted_text` when not-a-recipe is detected.
+
+**`LlmExtractionService`** in `SousChef.Infrastructure/Extraction/`: sends `extracted_text` to Claude via the `"anthropic"` named HttpClient (timeout 120s). Detects the `{"error":"not_a_recipe","reason":"..."}` sentinel before `RecipeDto` deserialization. Uses `JsonNamingPolicy.SnakeCaseLower` + `PropertyNameCaseInsensitive` to deserialize snake_case Claude JSON into the existing `RecipeDto` positional records. Token usage logged as structured log on each call.
+
+**`LlmEmbeddingService`** in `SousChef.Infrastructure/Embedding/`: sends text to OpenAI embeddings API via the `"openai"` named HttpClient (timeout 30s). Registered but not called in Phase 3b — wired in Phase 4 approve endpoint.
+
+**`ExtractionJobStatus.InvalidContent`** — Claude determined the document is not a recipe. Not a hard failure; user can reject (delete) or override (proceed to edit form, Phase 4). The `error` column stores a structured `PipelineError` with stage `NotARecipe` and Claude's reason as the detail.
+
+**Anthropic HttpClient**: named `"anthropic"`, base address from `Extraction:Endpoint` config (default `https://api.anthropic.com`), timeout 120s.
+**OpenAI HttpClient**: named `"openai"`, base address from `Embedding:Endpoint` config (default `https://api.openai.com`), timeout 30s.
 
 ## Key Decisions and Constraints
 
