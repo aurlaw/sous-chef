@@ -94,13 +94,25 @@ These names match exactly what `InteropDotNet` (embedded in the `Tesseract` NuGe
 **Anthropic HttpClient**: named `"anthropic"`, base address from `Extraction:Endpoint` config (default `https://api.anthropic.com`), timeout 120s.
 **OpenAI HttpClient**: named `"openai"`, base address from `Embedding:Endpoint` config (default `https://api.openai.com`), timeout 30s.
 
+**`EmbeddingInputBuilder.Build()`** — static helper in `SousChef.Core/Common/` — builds embedding input string from `RecipeDto` (title, description, tags, ingredient names joined with `. `). Used by approve endpoint and Phase 4b query embedding for consistency.
+
+**Approve endpoint** (`PATCH /api/jobs/{id}/approve`): reads `extracted_data` from job, deserializes to `RecipeDto`, builds embedding, calls `IEmbeddingService`, writes recipe + job status update in a single `SaveChangesAsync()` — both succeed or both fail. `TotalTimeMinutes` computed as prep + cook at approve time (nulls treated as 0). Only valid for `Review` status.
+
+**Reject endpoint** (`DELETE /api/jobs/{id}/reject`): valid for `Review`, `InvalidContent`, and `Failed` statuses. Calls `IStorageService.DeleteAsync` (result not checked — file may already be gone), then marks job `Rejected`.
+
+**Retry endpoint** (`PATCH /api/jobs/{id}/retry`): only valid for `Failed` jobs. Clears `error`, `extracted_data`, `processed_at`; preserves `extracted_text` and `attempts`. Returns `409` if `attempts >= 3` (`MaxRetryAttempts = 3` constant in `JobEndpoints`). BackgroundService skips PDF extraction when `extracted_text` is populated.
+
+**Delete recipe endpoint** (`DELETE /api/recipes/{id}`): removes recipe row (EF Core cascade removes ingredients and steps via `OnDelete(DeleteBehavior.Cascade)`), then deletes source PDF from storage.
+
+**HNSW index** on `recipes.embedding` added in migration `AddHnswIndexToRecipeEmbedding` via raw SQL (`vector_cosine_ops` matches cosine similarity used in Phase 4b search).
+
 ## Key Decisions and Constraints
 
 - `apphost.cs` is a root-level file — not inside a project folder. Do not move or convert it to a `.csproj`-based project.
 - `aspire.config.json` must not be modified; it is gitignored.
 - `appsettings.Development.json` must not be gitignored (the brief explicitly requires it tracked).
 - Secrets (API keys, storage credentials) live exclusively in .NET User Secrets for the `SousChef.Api` project. Auth0 credentials are deferred to Phase 5.
-- The `vector(1536)` dimension is tied to `text-embedding-3-small`; `EmbeddingOptions.Dimensions` is the source of truth. The HNSW index on `recipes.embedding` is deferred to Phase 4.
+- The `vector(1536)` dimension is tied to `text-embedding-3-small`; `EmbeddingOptions.Dimensions` is the source of truth. The HNSW index on `recipes.embedding` was added in Phase 4a.
 - `ExtractionJob.Status` is stored as a `string` column (`.HasConversion<string>()`) with an index — the background worker queries by status frequently.
 
 

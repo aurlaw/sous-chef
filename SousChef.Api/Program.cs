@@ -74,6 +74,7 @@ app.MapDefaultEndpoints();
 
 app.MapUploadEndpoints();
 app.MapJobEndpoints();
+app.MapRecipeEndpoints();
 app.MapHub<JobStatusHub>("/hubs/jobs");
 
 app.Run();

@@ -19,8 +19,10 @@ public class SousChefDbContext(DbContextOptions<SousChefDbContext> options) : Db
             e.Property(r => r.Tags).HasColumnType("text[]");
             e.Property(r => r.Embedding).HasColumnType("vector(1536)");
             e.Property(r => r.CreatedAt).HasDefaultValueSql("now()");
-            e.HasMany(r => r.Ingredients).WithOne(i => i.Recipe).HasForeignKey(i => i.RecipeId);
-            e.HasMany(r => r.Steps).WithOne(s => s.Recipe).HasForeignKey(s => s.RecipeId);
+            e.HasMany(r => r.Ingredients).WithOne(i => i.Recipe).HasForeignKey(i => i.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(r => r.Steps).WithOne(s => s.Recipe).HasForeignKey(s => s.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ExtractionJob>(e =>

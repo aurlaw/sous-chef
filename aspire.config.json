@@ -22,5 +22,8 @@
         "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true"
       }
     }
+  },
+  "features": {
+    "defaultWatchEnabled": "true"
   }
 }
