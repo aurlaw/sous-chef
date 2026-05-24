@@ -7,6 +7,7 @@ using SousChef.Core.Interfaces;
 using SousChef.Infrastructure.Data;
 using SousChef.Infrastructure.Embedding;
 using SousChef.Infrastructure.Extraction;
+using SousChef.Infrastructure.Search;
 using SousChef.Infrastructure.Storage;
 
 namespace SousChef.Infrastructure;
@@ -33,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.Configure<StorageOptions>(configuration.GetSection("Storage"));
         services.Configure<ExtractionOptions>(configuration.GetSection("Extraction"));
         services.Configure<EmbeddingOptions>(configuration.GetSection("Embedding"));
+        services.Configure<SearchOptions>(configuration.GetSection("Search"));
 
         services.AddHttpClient("anthropic", client =>
         {
@@ -60,6 +62,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDocumentExtractor, PdfDocumentExtractor>();
         services.AddScoped<IExtractionService, LlmExtractionService>();
         services.AddScoped<IEmbeddingService, LlmEmbeddingService>();
+        services.AddScoped<IRecipeSearchService, RecipeSearchService>();
+
+        services.AddMemoryCache();
 
         return services;
     }

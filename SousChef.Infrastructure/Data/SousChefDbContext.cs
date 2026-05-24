@@ -9,9 +9,13 @@ public class SousChefDbContext(DbContextOptions<SousChefDbContext> options) : Db
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
     public DbSet<ExtractionJob> ExtractionJobs => Set<ExtractionJob>();
 
+    public DbSet<RecipeSearchResult> RecipeSearchResults => Set<RecipeSearchResult>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("vector");
+
+        modelBuilder.Entity<RecipeSearchResult>(e => e.HasNoKey().ToView(null));
 
         modelBuilder.Entity<Recipe>(e =>
         {

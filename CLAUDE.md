@@ -106,8 +106,35 @@ These names match exactly what `InteropDotNet` (embedded in the `Tesseract` NuGe
 
 **HNSW index** on `recipes.embedding` added in migration `AddHnswIndexToRecipeEmbedding` via raw SQL (`vector_cosine_ops` matches cosine similarity used in Phase 4b search).
 
+**`IRecipeSearchService`** / **`RecipeSearchService`** — all query logic lives in `SousChef.Infrastructure/Search/RecipeSearchService.cs`; endpoint handlers are thin delegators.
+
+**Semantic search**: query string → `IEmbeddingService` → `Vector` → pgvector `<=>` cosine distance operator in raw SQL (`BuildSemanticSql`). Raw SQL required because pgvector operators are not supported in EF Core LINQ. SQL column aliases use quoted PascalCase (`"CuisineType"`) to match `RecipeSearchResult` property names for EF Core mapping.
+
+**`RecipeSearchResult`** — keyless entity in `SousChef.Infrastructure/Data/`, registered via `HasNoKey().ToView(null)` in `SousChefDbContext`. Used as the projection type for `FromSqlRaw` in semantic search. Distance cast to `::real` in SQL to match the `float` property.
+
+**Faceted-only search** (no query): pure LINQ on `_db.Recipes`, alphabetical order. `ApplyFacetFilters` helper handles cuisine, course, difficulty, max minutes, tags, include/exclude ingredients.
+
+**Hybrid search** (with query): raw SQL for pgvector `<=>`, ingredient include/exclude via EXISTS/NOT EXISTS subqueries. NpgsqlParameter with `NpgsqlDbType.Array | NpgsqlDbType.Text` for any filter accepting a list.
+
+**Cursor pagination**: alphabetical list uses `(title, id)` cursor via `SearchCursor` in `SousChef.Core/Common/`. Semantic search uses `(distance, id)` cursor. `SearchCursor.Decode()` swallows errors and returns null (invalid cursor → restart from page 1).
+
+**Facets cached** via `IMemoryCache` with 60s TTL under key `recipe-facets-{userId}`. Cache evicted after approve (`JobEndpoints.ApproveJob`) and delete (`RecipeEndpoints.DeleteRecipe`). `IMemoryCache` is process-local — fine for single-instance MVP.
+
+**Query param parsing**: comma-separated strings for multi-value filters (e.g. `cuisineTypes=Italian,French`). `ParseList` helper in `RecipeEndpoints`.
+
+**`GET /api/recipes/search`** enforces 500 char limit on `query` parameter; returns 400 on violation.
+
+**Endpoints added in Phase 4b**:
+- `GET /api/recipes` — all recipes, alphabetical, cursor paginated
+- `GET /api/recipes/search` — hybrid search with optional facets, cursor paginated
+- `GET /api/recipes/facets` — distinct filter values, cached 60s
+- `GET /api/recipes/{id}` — full recipe detail with ingredients and steps
+
+**`SearchOptions`** in `SousChef.Core/Common/` — configures `SemanticDistanceThreshold` (default `0.7`), `DefaultPageSize`, `MaxPageSize`. Registered from `"Search"` config section. Threshold filters out cosine distances above the value before results are returned; tune in `appsettings.json` without a code change.
+
 ## Key Decisions and Constraints
 
+- **Raw SQL naming convention**: EF Core does not apply snake_case naming. All PostgreSQL table and column names are PascalCase and must be double-quoted in any raw SQL — e.g. `"Recipes"`, `"Ingredients"`, `"UserId"`, `"CuisineType"`, `"TotalTimeMinutes"`, `"Embedding"`. Unquoted identifiers are case-folded to lowercase by PostgreSQL and will not match. This applies to migrations, `FromSqlRaw`, and any ad-hoc SQL.
 - `apphost.cs` is a root-level file — not inside a project folder. Do not move or convert it to a `.csproj`-based project.
 - `aspire.config.json` must not be modified; it is gitignored.
 - `appsettings.Development.json` must not be gitignored (the brief explicitly requires it tracked).

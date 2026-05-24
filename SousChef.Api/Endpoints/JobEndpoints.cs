@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Pgvector;
 using SousChef.Api.Hubs;
 using SousChef.Core.Common;
@@ -106,6 +107,7 @@ public static class JobEndpoints
         SousChefDbContext db,
         IEmbeddingService embeddingService,
         IHubContext<JobStatusHub> hub,
+        IMemoryCache cache,
         CancellationToken ct)
     {
         var job = await db.ExtractionJobs.FindAsync([id], ct);
@@ -183,6 +185,8 @@ public static class JobEndpoints
 
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync(ct);
+
+        cache.Remove($"recipe-facets-{PlaceholderUserId}");
 
         await hub.Clients.All.SendAsync("JobStatusChanged",
             new JobStatusChanged(job.Id, "Completed", null, "Recipe approved and added to library"), ct);
