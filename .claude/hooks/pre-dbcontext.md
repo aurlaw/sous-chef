@@ -1,3 +1,13 @@
+---
+description: Fires before edits to SousChefDbContext or ServiceCollectionExtensions — reminds about pgvector/Npgsql 10.x workaround pattern
+events:
+  - pre_tool_use
+globs:
+  - "SousChef.Infrastructure/Data/SousChefDbContext.cs"
+  - "SousChef.Infrastructure/ServiceCollectionExtensions.cs"
+alwaysApply: false
+---
+
 # Hook: Pre-DbContext Warning
 
 ## Trigger

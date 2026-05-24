@@ -1,3 +1,14 @@
+---
+description: Search API — RecipeSearchService, pgvector semantic SQL, EmbeddingInputBuilder consistency, SearchOptions/threshold, cursor pagination, facets cache, raw SQL naming, RecipeSearchResult keyless entity
+globs:
+  - "SousChef.Infrastructure/Search/**"
+  - "SousChef.Api/Endpoints/RecipeEndpoints.cs"
+  - "SousChef.Core/Common/SearchCursor.cs"
+  - "SousChef.Core/Common/SearchOptions.cs"
+  - "SousChef.Core/Common/EmbeddingInputBuilder.cs"
+alwaysApply: false
+---
+
 # Search Skill
 
 ## When to use this skill

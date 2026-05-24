@@ -1,3 +1,11 @@
+---
+description: PDF extraction pipeline — Tesseract setup, SkiaSharp, PdfPig, Docnet, PipelineStage enum, extracted_text/extracted_data lifecycle, keyword pre-filter, LlmExtractionService, InvalidContent status, Linux Docker deps
+globs:
+  - "SousChef.Infrastructure/Extraction/**"
+  - "SousChef.Api/Workers/ExtractionBackgroundService.cs"
+alwaysApply: false
+---
+
 # PDF Extraction Skill
 
 ## When to use this skill

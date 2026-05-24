@@ -1,3 +1,12 @@
+---
+description: Extraction pipeline flow — job status lifecycle, BackgroundService responsibilities, approve/reject/retry rules, hub notifications, PlaceholderUserId, extracted_text vs extracted_data
+globs:
+  - "SousChef.Api/Workers/ExtractionBackgroundService.cs"
+  - "SousChef.Api/Endpoints/JobEndpoints.cs"
+  - "SousChef.Core/Models/**"
+alwaysApply: false
+---
+
 # Pipeline Skill
 
 ## When to use this skill

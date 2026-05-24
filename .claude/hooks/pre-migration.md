@@ -1,3 +1,12 @@
+---
+description: Fires before migration commands or edits to migration files — reminds about double-quoted PascalCase column names in raw SQL
+events:
+  - pre_tool_use
+globs:
+  - "SousChef.Infrastructure/Data/Migrations/**"
+alwaysApply: false
+---
+
 # Hook: Pre-Migration Warning
 
 ## Trigger

@@ -1,3 +1,13 @@
+---
+description: Fires before edits to RecipeSearchService or RecipeEndpoints — reminds about EmbeddingInputBuilder consistency, raw SQL naming, threshold config
+events:
+  - pre_tool_use
+globs:
+  - "SousChef.Infrastructure/Search/RecipeSearchService.cs"
+  - "SousChef.Api/Endpoints/RecipeEndpoints.cs"
+alwaysApply: false
+---
+
 # Hook: Pre-Search Service Warning
 
 ## Trigger

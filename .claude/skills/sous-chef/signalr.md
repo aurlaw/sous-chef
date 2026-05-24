@@ -1,3 +1,12 @@
+---
+description: SignalR hub — JobStatusHub, hub message types, CORS policy, IHubContext injection, push points in pipeline, Auth Phase 5 notes, Vue composable Phase 6
+globs:
+  - "SousChef.Api/Hubs/**"
+  - "SousChef.Api/Workers/ExtractionBackgroundService.cs"
+  - "SousChef.Api/Endpoints/JobEndpoints.cs"
+alwaysApply: false
+---
+
 # SignalR Skill
 
 ## When to use this skill
