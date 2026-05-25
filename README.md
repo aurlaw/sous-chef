@@ -6,7 +6,7 @@ SousChef is a personal recipe management app that extracts structured recipes fr
 
 | Layer | Technology |
 |---|---|
-| Orchestration | .NET Aspire 13.3.3 |
+| Orchestration | .NET Aspire 13.x |
 | API | ASP.NET Core 10 (Minimal API) |
 | Frontend | Vue 3 + TypeScript + Vite |
 | Database | PostgreSQL 16 + pgvector |
@@ -18,7 +18,7 @@ SousChef is a personal recipe management app that extracts structured recipes fr
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [.NET Aspire CLI](https://learn.microsoft.com/en-us/dotnet/aspire/fundamentals/setup-tooling) (`dotnet workload install aspire`)
+- [.NET Aspire CLI](https://learn.microsoft.com/en-us/dotnet/aspire/fundamentals/setup-tooling)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for Postgres, MinIO containers)
 - [Node.js 20+](https://nodejs.org/) (for the Vue frontend)
 
@@ -39,17 +39,18 @@ After restoring, set the required secrets for the API project:
 
 ```bash
 dotnet user-secrets init --project SousChef.Api
-dotnet user-secrets set "Storage:AccessKeyId"     "souschef"              --project SousChef.Api
+dotnet user-secrets set "Storage:AccessKeyId"     "souschef"               --project SousChef.Api
 dotnet user-secrets set "Storage:SecretAccessKey"  "souschef_secret"       --project SousChef.Api
 dotnet user-secrets set "Extraction:ApiKey"        "<your Anthropic key>"  --project SousChef.Api
 dotnet user-secrets set "Embedding:ApiKey"         "<your OpenAI key>"     --project SousChef.Api
+dotnet user-secrets set "Auth0:Domain"             "<your Auth0 Domain>"   --project SousChef.Api
+dotnet user-secrets set "Auth0:Audience"           "<your Auth0 Audience>" --project SousChef.Api
 ```
 
 ### 3. Start the environment
 
 ```bash
-make dev
-# or: aspire start
+aspire start
 ```
 
 Aspire starts all containers (Postgres + pgvector, MinIO) and launches both the API and the Vue dev server. Open the Aspire dashboard URL printed in the terminal.
@@ -85,6 +86,7 @@ sous-chef/
 │   ├── Data/                   # EF Core entities + SousChefDbContext
 │   ├── Migrations/             # EF Core migrations
 │   ├── Storage/                # MinIO / S3 (Phase 2)
+│   ├── Search/                 # Search (Phase 4)
 │   ├── Extraction/             # Claude PDF extraction (Phase 3)
 │   └── Embedding/              # OpenAI embeddings (Phase 3)
 │
@@ -96,8 +98,9 @@ sous-chef/
 ## Development Commands
 
 ```bash
-make dev        # Start full local environment (aspire start)
+aspire start        # Start full local environment
 make migrate    # Run EF Core migrations manually
+aspire stop       # Stops local environment 
 ```
 
 Manual migration (if needed):
@@ -132,6 +135,8 @@ Non-secret config lives in `SousChef.Api/appsettings.json`. Secrets are injected
 | `Storage:SecretAccessKey` | MinIO secret key |
 | `Extraction:ApiKey` | Anthropic API key |
 | `Embedding:ApiKey` | OpenAI API key |
+| `Auth0:Domain` | Auth0 Domain |
+| `Auth0:Audience` | Auth0 Audience |
 
 Auth0 credentials are added in Phase 5.
 

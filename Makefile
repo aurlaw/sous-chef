@@ -1,10 +1,4 @@
-.PHONY: dev migrate setup-native-libs
-
-dev: ## Start full local environment
-	aspire start
-
-stop: ## Stop full local environment
-	aspire stop
+.PHONY: migrate setup-native-libs
 
 migrate: ## Run EF Core migrations manually
 	dotnet ef database update \
